@@ -1,0 +1,263 @@
+--- Mary Shelley's Frankenstein (Sega 1995) v1.22.vbs.original
++++ Mary Shelley's Frankenstein (Sega 1995) v1.22.vbs
+@@ -27,9 +27,6 @@
+ ' Version 1.0.1: Correct LUT initialization
+ '				 Added a wall for Frank
+ '				 Added a playfield wall left to the Geneva scoop
+-' Version 1.1:	 Some physical improvements to match the real table, i.e. at the Sarcophagus scoop, the kickback and the plastic ramp
+-'				 Less reflection on the transparent plastic over the bumper area
+-'				 Correct GI-Off initialisation at table startup
+ '
+ ' Schreibi34:
+ ' Visuals and gameplay
+@@ -55,7 +52,6 @@
+ ' - RothbauerW: For his awesome physics' guide at vpinball.com and some more help on the physics
+ ' - Mark70, Bord, Thalamus: For beta testing and some good hints
+ ' - Batch: For the DT background image (Sorry for making it a bit darker! Batch's original is in the image manager for those who like more pop)
+-' - Schotty VH: For gameplay hints
+ 
+ 
+ Option Explicit
+@@ -85,7 +81,7 @@
+ ' ENABLED/DISABLE THE ABILITY TO CHANGE THE LUT FILE WITH THE RIGHT MAGNASAVE BUTTON
+ '	0 = disabled
+ '	1 = enabled (default)
+-EnableLUTChangeWithRightMagnaSave = 1
++EnableLUTChangeWithRightMagnaSave = 0
+ 
+ ' SELECT YOUR PREFERRED SIDEWALLS
+ '	0 = autoselect (default)
+@@ -228,7 +224,7 @@
+ 	PinMAMETimer.Interval 				= PinMAMEInterval
+     PinMAMETimer.Enabled  				= True
+ 	LampTimer.Enabled 					= True
+-	GraphicsTimer.Interval				= 10
++	GraphicsTimer.Interval				= 1
+ 	GraphicsTimer.Enabled				= True
+ 	RollingSoundTimer.Interval			= 10
+ 	RollingSoundTimer.Enabled			= True
+@@ -521,18 +517,18 @@
+ Sub sw29_Timer() : MoveStandUpTarget 29, sw29, sw29P, sw29PGIOff, sw29Dir, False : End Sub
+ 
+ Sub MoveStandUpTarget(id, sw, prim, primGIOff, counter, init)
+-	If init And prim.RotX < 10 Then
++    If init And prim.RotX < 20 Then
+ 		OnStandupTargetHit
+ 		vpmTimer.PulseSw id
+ 		sw.TimerInterval = 5
+ 		sw.TimerEnabled  = True
+-		counter = 5
++        counter = 0
+ 	End If
+ 	prim.TransY = prim.TransY - counter / 4
+ 	prim.RotX = prim.RotX + counter
+ 	primGIOff.TransY = prim.TransY
+ 	primGIOff.RotX = prim.RotX
+-	If prim.RotX >= 10 Then counter = -0.5
++    If prim.RotX >= 20 Then counter = 0
+ 	If prim.RotX = 0 Then sw.TimerEnabled = False
+ End Sub
+ 
+@@ -567,11 +563,11 @@
+ Sub sw31s_Hit()  : PlaySoundAt "fx_balldrop" & Int(Rnd*3), sw31s : End Sub
+ Sub sw31_Hit()   : PlaySoundAt "fx_loosemetalplate", sw31 : End Sub
+ Sub sw31_Unhit() : Controller.Switch(31) = False : sw31e.Enabled = True : End Sub
+-Sub sw31e_Hit()  : KickScoop ActiveBall, 107, 25 : sw31e.Enabled = False : End Sub
++Sub sw31e_Hit()  : KickScoop ActiveBall, 110, 25 : sw31e.Enabled = False : End Sub
+ Sub sw32s_Hit()  : PlaySoundAt "fx_balldrop" & Int(Rnd*3), sw32s : End Sub
+ Sub sw32_Hit()   : PlaySoundAt "fx_loosemetalplate", sw32 : End Sub
+ Sub sw32_Unhit() : Controller.Switch(32) = False : sw32e.Enabled = True : End Sub
+-Sub sw32e_Hit()  : KickScoop ActiveBall, 169, 16 : sw32e.Enabled = False : End Sub
++Sub sw32e_Hit()  : KickScoop ActiveBall, 165, 20 : sw32e.Enabled = False : End Sub
+ 
+ Sub SolIceCaveEject(Enabled)
+ 	If Enabled Then
+@@ -615,7 +611,7 @@
+ End Sub
+ Sub sw31_Timer()
+ 	' top scoop
+-	SaucerAction sw31Step, Nothing, sw31Ball, 31, sw31, 290, 150+Rnd()*20
++	SaucerAction sw31Step, Nothing, sw31Ball, 31, sw31, 292, 150+Rnd()*20
+ 	sw31Step = sw31Step + 1
+ End Sub
+ Sub sw32_Timer()
+@@ -675,6 +671,12 @@
+ 	End With
+ End Sub
+ 
++Sub SlowDownBall(actBall)
++	With actBall
++		If .VelY < 0 Then .VelY = .VelY / 2 : .VelX = .VelX / 2
++	End With
++End Sub
++
+ 
+ ' ****************************************************
+ ' upper ramp traps
+@@ -694,20 +696,28 @@
+ 	End If
+ End Sub
+ 
++Dim handfull
++
+ Sub trUpperRampTrap1_Hit()
++If handfull = 0 Then
+ 	Set ballFrankLeftHand		  = ActiveBall
+ 	isBallOnWireRamp = False
+ 	rUpperRampTrap1.Collidable    = True
+ 	rUpperRamp002.Collidable	  = False
+ 	PlaySoundAt "ferris_ball_drop", trUpperRampTrap1
++End If
+ End Sub
++
+ Sub kFrankLeftHand_Hit()
+ 	rUpperRampTrap1.Collidable  = False
+ 	rUpperRamp002.Collidable	= True
+ 	PlaySoundAt "ferris_hit" & Int(Rnd()*2+1), kFrankLeftHand
+ '	vpmTimer.AddTimer 15000, "SolFranksArms True'"
++    handfull = 1
+ End Sub
+ 
++Sub kFrankLeftHand_unHit:handfull = 0:End Sub
++
+ Sub trUpperRampTrap2_Hit()
+ 	Set ballFrankRightHand		  = ActiveBall
+ 	isBallOnWireRamp = False
+@@ -1107,7 +1117,6 @@
+ 		PFLightsCount(idx) = PFLightsCount(idx) + 1
+ 		If Right(obj.Name,1) = "a" Then obj.IntensityScale = EnableReflectionsAtBall
+ 	Next
+-	InitGI
+ End Sub
+ Sub LampTimer_Timer()
+ 	Dim chgLamp, num, chg, ii, nr, xxx, obj
+@@ -1150,18 +1159,6 @@
+ Sub SolGI(IsOff)
+ 	SetGI Not IsOff
+ End Sub
+-
+-Sub InitGI()
+-	Dim obj
+-	pFlasher2Aa.Visible = False
+-	pFlasher6Aa.Visible = False
+-	pFlasher7Aa.Visible = False
+-	pFlasher15Aa.Visible = False
+-	For Each obj In GIElements : obj.Visible = False : Next
+-	UseGIMaterial GIWireTrigger, "Metal0.8", 0
+-		UseGIMaterial sGates, "Metal Chrome S34", 0
+-		UseGIMaterial Array(kIceCave,kVUK,pSpinner54Rod), "Metal Chrome S34", 0
+-End Sub
+ Sub SetGI(IsOn)
+ 	If EnableGI = 0 And Not isGIOn Then Exit Sub
+ 	If isGIOn <> IsOn Then
+@@ -1510,30 +1507,29 @@
+ Sub RollOverSound() : PlaySoundAtVolPitch SoundFX("fx_rollover",DOFContactors), ActiveBall, 2, .25 : End Sub  
+ Sub SwitchSound(switch) : PlaySoundAt SoundFX("fx_sensor",DOFContactors), switch : End Sub
+ 
+-Sub trUpperRampStart_Hit() : SlowDownBall ActiveBall : End Sub
+-Sub trUpperRampWireStart_Hit() : isBallOnWireRamp = True : End Sub
+-Sub trUpperRampWireEnd_Hit() : isBallOnWireRamp = False : End Sub
+-
+-Sub trLowerRampBeforeStart_Hit() : isBallOnRamp = False : End Sub
+-Sub trLowerRampStart_Hit() : isBallOnRamp = True : SpeedUpRamp ActiveBall : End Sub
+-Sub trLowerRampStart2_Hit() : SpeedUpRamp ActiveBall : End Sub
+-Sub trLowerRampEnd_Hit() : isBallOnRamp = False : End Sub
+-
+-' ball collision sound
+-Sub OnBallBallCollision(ball1, ball2, velocity)
+-	PlaySound "fx_collide", 0, Csng(velocity) ^ 2 / 2000, AudioPan(ball1), 0, Pitch(ball1), 0, 0, AudioFade(ball1)
++Sub trUpperRampStart_Hit()
++	SlowDownBall ActiveBall
++End Sub
++Sub trUpperRampWireStart_Hit()
++	isBallOnWireRamp = True
++End Sub
++Sub trUpperRampWireEnd_Hit()
++	isBallOnWireRamp = False
+ End Sub
+ 
+-Sub SlowDownBall(actBall)
+-	With actBall
+-		If .VelY < 0 Then .VelY = .VelY / 2 : .VelX = .VelX / 2
+-	End With
++Sub trLowerRampBeforeStart_Hit()
++	isBallOnRamp = False
++End Sub
++Sub trLowerRampStart_Hit()
++	isBallOnRamp = True
++End Sub
++Sub trLowerRampEnd_Hit()
++	isBallOnRamp = False
+ End Sub
+ 
+-Sub SpeedUpRamp(actBall)
+-	With actBall
+-		If .VelY < 0 Then .VelY = .VelY * 1
+-	End With
++' ball collision sound
++Sub OnBallBallCollision(ball1, ball2, velocity)
++	PlaySound "fx_collide", 0, Csng(velocity) ^2 / 2000, AudioPan(ball1), 0, Pitch(ball1), 0, 0, AudioFade(ball1)
+ End Sub
+ 
+ 
+@@ -1636,27 +1632,38 @@
+ 
+ 	' maybe show ball shadows
+ 	If ShowBallShadow <> 0 Then
+-		Dim BOT
++		 Dim BOT, b
+ 		BOT = GetBalls
+ 		' hide shadow of deleted balls
+-		If UBound(BOT) < tnob - 1 Then
+-			For ii = UBound(BOT) + 1 To tnob - 1
+-				If BallShadow(ii).Visible Then BallShadow(ii).Visible = False
++    If UBound(BOT)<(tnob-1) Then
++        For b = (UBound(BOT) + 1) to (tnob-1)
++            BallShadow(b).visible = 0
+ 			Next
+ 		End If
++    ' exit the Sub if no balls on the table
++    If UBound(BOT) = -1 Then Exit Sub
+ 		' render the shadow for each ball
+-		For ii = 0 to UBound(BOT)
+-			If BOT(ii).X < Frankenstein.Width/2 Then
+-				BallShadow(ii).X = ((BOT(ii).X) - (Ballsize/6) + ((BOT(ii).X - (Frankenstein.Width/2))/7)) + 6
++    For b = 0 to UBound(BOT)
++		BallShadow(b).X = BOT(b).X
++		ballShadow(b).Y = BOT(b).Y + 10                       
++        If BOT(b).Z > 20 and BOT(b).Z < 200 Then
++            BallShadow(b).visible = 1
++        Else
++            BallShadow(b).visible = 0
++        End If
++if BOT(b).z > 30 Then 
++ballShadow(b).height = BOT(b).Z - 20
++ballShadow(b).opacity = 80
+ 			Else
+-				BallShadow(ii).X = ((BOT(ii).X) + (Ballsize/6) + ((BOT(ii).X - (Frankenstein.Width/2))/7)) - 6
++ballShadow(b).height = BOT(b).Z - 24
++ballShadow(b).opacity = 90
+ 			End If
+-			BallShadow(ii).Y = BOT(ii).Y + 12
+-			BallShadow(ii).Visible = (BOT(ii).Z > 20)
+ 		Next
+ 	End If
++End Sub
+ 
+ 	' maybe move primitive flippers
++Sub Realtime_Timer()
+ 	pLeftFlipper.ObjRotZ  = LeftFlipper.CurrentAngle +180	
+ 	pLeftFlipperGIOff.ObjRotZ  = LeftFlipper.CurrentAngle +180	
+ 	pRightFlipper.ObjRotZ = RightFlipper.CurrentAngle +180	
+@@ -1724,8 +1731,8 @@
+ 		End If
+ 		
+ 		'   ball drop sounds matching the adjusted height params
+-		If BOT(b).VelZ < -2 And BOT(b).Z < 55 And BOT(b).Z > 27 And Not isBallOnRamp Then
+-			PlaySound "fx_balldrop" & Int(Rnd()*3), 0, ABS(BOT(b).VelZ)/17*5, AudioPan(BOT(b)), 0, Pitch(BOT(b)), 1, 0, AudioFade(BOT(b))
++		If BOT(b).VelZ < -2 And BOT(b).Z < 55 And BOT(b).Z > 32 And Not isBallOnRamp Then
++			PlaySound "fx_balldrop" & b, 0, ABS(BOT(b).VelZ)/17*5, AudioPan(BOT(b)), 0, Pitch(BOT(b)), 1, 0, AudioFade(BOT(b))
+ 		End If
+ 
+ '		' saucers sw53 and sw55 and scoops sw31 and sw32
+
